@@ -1,6 +1,7 @@
 """
 Provides an interface to C42 API (only GET events and GET event-subscriptions)
 """
+import concurrent.futures
 import urllib
 import json
 from collections import OrderedDict
@@ -12,6 +13,8 @@ HEADERS = {'Accept':'application/json', 'Content-type':'application/json',
            'Authorization':'Token {}'.format(TOKEN)}
 # Timeout in seconds for requests
 TIMEOUT = 4
+session = requests.Session()
+session.headers.update(HEADERS)
 
 def get_decoded_json_from_endpoint(endpoint, resource=None, params=None):
     """
@@ -22,7 +25,7 @@ def get_decoded_json_from_endpoint(endpoint, resource=None, params=None):
     """
     try:
         url = urllib.parse.urljoin(endpoint, resource)
-        response = requests.get(url, params=params, headers=HEADERS, timeout=TIMEOUT)
+        response = session.get(url, params=params, timeout=TIMEOUT)
         response.raise_for_status()
     except requests.exceptions.HTTPError as err:
         print(err)
@@ -70,15 +73,22 @@ def get_events_with_subscriptions(event_id):
     Combines event data with subscription data.
     Returns a dictionary with the information or None if there is an error.
     """
-    event = get_event(event_id)
-    subscriptions = get_event_subscriptions(event_id)
-    if event and subscriptions:
-        # OrderedDict for consistent ordering of the keys
-        combined = OrderedDict()
-        combined['id'] = event_id
-        combined['title'] = event['data'][0]['title']
-        combined['names'] = [data['subscriber']['first_name'] for data in subscriptions['data']]
-        return combined
+    # This two API calls should be done asynchronously, otherwise we are wasting time
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        future_event = executor.submit(get_event, event_id)
+        future_subscriptions = executor.submit(get_event_subscriptions, event_id)
+        both_futures = [future_event, future_subscriptions]
+        # Wait for both futures to complete
+        concurrent.futures.wait(both_futures)
+        event = future_event.result()
+        subscriptions = future_subscriptions.result()
+        if event and subscriptions:
+            # OrderedDict for consistent ordering of the keys
+            combined = OrderedDict()
+            combined['id'] = event_id
+            combined['title'] = event['data'][0]['title']
+            combined['names'] = [data['subscriber']['first_name'] for data in subscriptions['data']]
+            return combined
     print('Event or subscriptions API failed, cannot return combined result')
     return None
 
