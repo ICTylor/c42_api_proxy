@@ -38,3 +38,38 @@ Regarding testing I will first capture the requirements:
 
 There are many libraries and frameworks for testing in Python. The most used is probably unittest as it is part of the standard library. Another interesting option is Behave which is based on Cucumber.
 To keep things simple I will use **unittest**.
+
+# Deployment
+
+Both nginx and gunicorn require some configuration. I will provide a docker-compose.yml and Dockerfiles to make it easier to demonstrate a possible working configuration using **docker**.
+
+# Running the server
+
+Running using Flask development server directly:
+```
+python c42_proxy.py
+```
+
+Doing this will expose a Flask server on localhost:5000
+
+Another option is running gunicorn with:
+```
+docker build -t ictylor/gunicorn
+docker run --name test_gunicorn -p 80:4242 -t ictylor/gunicorn
+```
+Doing this will run a docker container and connect the internal port 4242 to external port 80
+
+The last option is:
+```
+docker-compose build
+docker-compose up
+```
+This option runs a container with nginx working as a reverse proxy for a gunicorn container.
+
+# Testing instructions
+
+Run all the tests with:
+```
+python -m unittest discover
+```
+Testing takes a long time because a test case waits for 4.2 minutes to test the cache.
