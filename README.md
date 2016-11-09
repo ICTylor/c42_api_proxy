@@ -54,7 +54,7 @@ Doing this will expose a Flask server on localhost:5000
 
 Another option is running gunicorn with:
 ```
-docker build -t ictylor/gunicorn
+docker build -t ictylor/gunicorn .
 docker run --name test_gunicorn -p 80:4242 -t ictylor/gunicorn
 ```
 Doing this will run a docker container and connect the internal port 4242 to external port 80
